@@ -1,5 +1,5 @@
 homepage: "https://martijnvanvreeden.nl"
 documentation: "https://github.com/martijnvv/kameleoon_offline_conversion_api"
 versions:
-  - sha: c27e9787ba1ff42f444b7d2440dc404acee56226
+  - sha: feebe7a71b7af5286a3d71df9e6e4373f5d14ab9
     changeNotes: First release
