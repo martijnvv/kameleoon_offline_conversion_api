@@ -3,12 +3,6 @@
 > ⚠️ **Experimental / Unofficial Template**
 >
 > This custom Google Tag Manager Server-Side template is unofficial and not maintained by Kameleoon.  
-> Before implementing, you **must contact your Kameleoon Account Manager** to:
->
-> - Enable and validate Offline / Server-Side Conversion API access
-> - Confirm authentication requirements
-> - Validate required payload structure
-> - Confirm environment-specific endpoints
 
 ---
 
