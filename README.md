@@ -66,8 +66,6 @@ Backend / CRM → Server-Side GTM → Kameleoon API
 Before installing:
 
 - Kameleoon account
-- Offline Conversion API enabled
-- API credentials (Client ID / Secret or API Key)
 - Site Code
 - Server-Side GTM container deployed
 - Secure first-party server domain configured
@@ -102,8 +100,6 @@ After importing:
 ## Required Fields
 
 - **Site Code**
-- **API Endpoint**
-- **Authentication credentials**
 - **Visitor Identifier**
 - **Goal ID or Conversion Identifier**
 
@@ -197,7 +193,7 @@ Depending on your Kameleoon configuration, authentication may require:
 - Client credentials
 - Environment-specific headers
 
-Always confirm authentication format with your Kameleoon Account Manager.
+API Authentication is optional, but you should check if it is enabled for your account. Authenticated API's are currently not supported for this template. 
 
 ---
 
@@ -237,7 +233,6 @@ After validation:
 - Ensure consent compliance before sending conversion data
 - Avoid sending PII unless explicitly allowed
 - Use secure HTTPS endpoints
-- Store credentials securely in GTMSS template fields
 
 ---
 
