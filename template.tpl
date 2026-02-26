@@ -1,10 +1,3 @@
-﻿___TERMS_OF_SERVICE___
-
-By creating or modifying this file you agree to Google Tag Manager's Community
-Template Gallery Developer Terms of Service available at
-https://developers.google.com/tag-manager/gallery-tos (or such other URL as
-Google may provide), as modified from time to time.
-
 ___INFO___
 
 {
@@ -13,7 +6,6 @@ ___INFO___
   "version": 1,
   "securityGroups": [],
   "displayName": "Kameleoon Offline Conversion API",
-  "categories": "[EXPERIMENTATION]",
   "brand": {
     "id": "martijnvv",
     "displayName": "martijnvv"
@@ -91,6 +83,13 @@ ___TEMPLATE_PARAMETERS___
   },
   {
     "type": "TEXT",
+    "name": "cookieId",
+    "displayName": "Cookie ID",
+    "simpleValueType": true,
+    "help": "Cookie value from kameleoonVisitorCode, leave empty to pull automatically from cookie"
+  },
+  {
+    "type": "TEXT",
     "name": "revenue",
     "displayName": "revenue (optional)",
     "simpleValueType": true
@@ -126,7 +125,6 @@ ___TEMPLATE_PARAMETERS___
 
 ___SANDBOXED_JS_FOR_SERVER___
 
-// https://developers.kameleoon.com/apis/data-api-rest/tutorials/processing-offline-goal-conversions-in-experiments/#sending-offline-goal-conversion
 const sendHttpRequest = require('sendHttpRequest');
 const logToConsole = require('logToConsole');
 const setResponseBody = require('setResponseBody');
@@ -138,22 +136,12 @@ const makeNumber = require('makeNumber');
 const encodeUriComponent = require('encodeUriComponent');
 const getCookieValues = require('getCookieValues');
 const generateRandom = require('generateRandom');
-const getAllEventData = require('getAllEventData');
-const eventData = getAllEventData();
-const user_agent = eventData.user_agent;
-const cookie_value = getCookieValues('kameleoonVisitorCode')[0];
 
-function isFiniteNumber(n) {
-  return typeof n === 'number' && n === n;
-}
+function isFiniteNumber(n) { return typeof n === 'number' && n === n; }
 
 function makeNonce() {
-  var chars = 'abcdef0123456789';
-  var out = '';
-  for (var i = 0; i < 16; i++) {
-    var r = generateRandom(0, chars.length - 1); 
-    out += chars.charAt(r);
-  }
+  var chars = 'abcdef0123456789', out = '';
+  for (var i = 0; i < 16; i++) out += chars.charAt(generateRandom(0, chars.length - 1));
   return out;
 }
 
@@ -162,12 +150,8 @@ function chooseHost(region, customDomain) {
   if (region === 'na') return 'https://na-data.kameleoon.io';
   if (region === 'custom' && customDomain) {
     var cd = '' + customDomain;
-    if (!(cd.indexOf('http://') === 0 || cd.indexOf('https://') === 0)) {
-      cd = 'https://' + cd;
-    }
-    if (cd.lastIndexOf('/') === cd.length - 1) {
-      cd = cd.slice(0, -1);
-    }
+    if (!(cd.indexOf('http://') === 0 || cd.indexOf('https://') === 0)) cd = 'https://' + cd;
+    if (cd.lastIndexOf('/') === cd.length - 1) cd = cd.slice(0, -1);
     return cd;
   }
   return 'https://data.kameleoon.io';
@@ -180,10 +164,11 @@ function parseOptionalJson(str) {
   return JSON.parse(s);
 }
 
+// ---- Input & defaults ----
 var region       = data.region || 'auto';
 var customDomain = data.customDomain || '';
 var siteCode     = data.siteCode;
-var visitorCode  = cookie_value || undefined;
+var visitorCode  = data.cookieId || getCookieValues('kameleoonVisitorCode')[0];
 var goalIdNum    = makeNumber(data.goalId);
 var revenueNum   = makeNumber(data.revenue);
 var negative     = !!data.negative;
@@ -192,6 +177,7 @@ var timeoutMs    = makeNumber(data.timeoutMs);
 if (!isFiniteNumber(timeoutMs)) timeoutMs = 4000;
 var debug        = !!data.debug;
 
+// ---- Validation ----
 function failEarly(msg) {
   setResponseStatus(400);
   setResponseHeader('x-kameleoon-error', 'validation');
@@ -206,14 +192,10 @@ if (!isFiniteNumber(goalIdNum)) { failEarly('Missing or invalid goalId'); return
 
 // ---- Build request ----
 var host = chooseHost(region, customDomain);
-var siteCodeStr = makeString(siteCode);
-var visitorCodeStr = makeString(visitorCode);
-
-// Force JSON mode per GTM SSG + Kameleoon docs
 var endpoint = host + '/visit/events'
   + '?json=true'
-  + '&siteCode=' + encodeUriComponent(siteCodeStr)
-  + '&visitorCode=' + encodeUriComponent(visitorCodeStr);
+  + '&siteCode=' + encodeUriComponent(makeString(siteCode))
+  + '&visitorCode=' + encodeUriComponent(makeString(visitorCode));
 
 var event = {
   nonce: makeNonce(),
@@ -224,31 +206,28 @@ if (isFiniteNumber(revenueNum)) event.revenue = revenueNum;
 if (negative) event.negative = true;
 if (metadata && typeof metadata === 'object') event.metadata = metadata;
 
-var headers = { 'Content-Type': 'application/json' };
-headers['User-Agent'] = user_agent;
+var headers = {
+  'Content-Type': 'application/json',
+  'User-Agent': 'GTM-Server/1.0 (+https://yourdomain.example)'
+};
+if (data.userAgent) headers['User-Agent'] = '' + data.userAgent;
+if (data.authToken) headers['Authorization'] = 'Bearer ' + data.authToken;
 
 var body = JSON.stringify([event]);
-logToConsole(body);
 if (debug) logToConsole('Kameleoon Offline Goal request', { url: endpoint, headers: headers, body: body });
 
-// ---- Send ----
+// ---- Send (note: body is the 3rd arg) ----
 sendHttpRequest(endpoint, {
   method: 'POST',
   headers: headers,
-  timeout: timeoutMs,
-  body: body
-}).then(function(resp) {
+  timeout: timeoutMs
+}, body).then(function(resp) {
   var status = resp.statusCode || 0;
   setResponseStatus(status);
   setResponseHeader('x-kameleoon-status', '' + status);
   setResponseBody(resp.body || '');
   if (debug) logToConsole('Kameleoon Offline Goal response', resp);
-
-  if (status >= 200 && status < 300) {
-    data.gtmOnSuccess();
-  } else {
-    data.gtmOnFailure();
-  }
+  if (status >= 200 && status < 300) data.gtmOnSuccess(); else data.gtmOnFailure();
 }).catch(function(err) {
   setResponseStatus(500);
   setResponseHeader('x-kameleoon-error', 'request');
@@ -391,27 +370,6 @@ ___SERVER_PERMISSIONS___
       "isEditedByUser": true
     },
     "isRequired": true
-  },
-  {
-    "instance": {
-      "key": {
-        "publicId": "read_event_data",
-        "versionId": "1"
-      },
-      "param": [
-        {
-          "key": "eventDataAccess",
-          "value": {
-            "type": 1,
-            "string": "any"
-          }
-        }
-      ]
-    },
-    "clientAnnotations": {
-      "isEditedByUser": true
-    },
-    "isRequired": true
   }
 ]
 
@@ -423,6 +381,6 @@ scenarios: []
 
 ___NOTES___
 
-Created on 10/31/2025, 9:46:32 AM
+Created on 11/6/2025, 3:20:46 PM
 
 
